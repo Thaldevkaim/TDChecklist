@@ -7,33 +7,69 @@ from datetime import datetime
 import time
 import requests
 import ssl
+import json
+from bs4 import BeautifulSoup
 
-def get_nse_stocks():
-    """Return a list of NSE stocks"""
-    # This is a subset of NSE stocks to start with
-    # We'll analyze these first and then can expand the list
-    stocks = [
-        # Large Cap
-        "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS",
-        "BHARTIARTL.NS", "ITC.NS", "LT.NS", "HINDUNILVR.NS", "SBIN.NS",
+def get_all_indian_stocks():
+    """Return a list of all BSE and NSE stocks"""
+    try:
+        # BSE stocks (with .BO suffix)
+        bse_url = "https://www.bseindia.com/corporates/List_Scrips.aspx"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
         
-        # Mid Cap
-        "NAUKRI.NS", "MPHASIS.NS", "TATACOMM.NS", "PERSISTENT.NS", "LTIM.NS",
-        "TRENT.NS", "ABBOTINDIA.NS", "PGHL.NS", "SUPREMEIND.NS", "ASTRAL.NS",
+        stocks = []
         
-        # Small Cap
-        "CDSL.NS", "ALKYLAMINE.NS", "RELAXO.NS", "TASTYBITE.NS", "GRINDWELL.NS",
-        "VMART.NS", "VIPIND.NS", "SAFARI.NS", "APOLLOHOSP.NS", "LALPATHLAB.NS",
+        # Default list of major stocks (as backup)
+        default_stocks = [
+            # Large Cap BSE
+            "RELIANCE.BO", "TCS.BO", "HDFCBANK.BO", "INFY.BO", "ICICIBANK.BO",
+            "HINDUNILVR.BO", "BHARTIARTL.BO", "ITC.BO", "KOTAKBANK.BO", "LT.BO",
+            
+            # Mid Cap BSE
+            "NAUKRI.BO", "MPHASIS.BO", "TATACOMM.BO", "PERSISTENT.BO", "LTIM.BO",
+            "TRENT.BO", "ABBOTINDIA.BO", "SUPREMEIND.BO", "ASTRAL.BO",
+            
+            # NSE stocks
+            "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS",
+            "HINDUNILVR.NS", "BHARTIARTL.NS", "ITC.NS", "KOTAKBANK.NS", "LT.NS",
+            
+            # Additional Popular Stocks
+            "TATAMOTORS.BO", "ZEEL.BO", "PNB.BO", "TVSMOTOR.BO", "M&M.BO",
+            "BAJFINANCE.BO", "DMART.BO", "PIDILITIND.BO", "TITAN.BO", "ASIANPAINT.BO"
+        ]
         
-        # Recent Strong Performers
-        "TITAGARH.NS", "OLECTRA.NS", "TATAMOTORS.NS", "ZEEL.NS", "PNB.NS",
-        "TVSMOTOR.NS", "M&M.NS", "BAJFINANCE.NS", "VBL.NS", "HAL.NS",
+        try:
+            # Try to fetch BSE equity list
+            bse_response = requests.get("https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w", headers=headers)
+            if bse_response.status_code == 200:
+                bse_data = bse_response.json()
+                for scrip in bse_data:
+                    if scrip['Status'] == 'Active':
+                        stocks.append(f"{scrip['SCRIP_CD']}.BO")
+            
+            # Try to fetch NSE equity list
+            nse_url = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20500"
+            nse_response = requests.get(nse_url, headers=headers)
+            if nse_response.status_code == 200:
+                nse_data = nse_response.json()
+                for stock in nse_data['data']:
+                    stocks.append(f"{stock['symbol']}.NS")
+                    
+        except Exception as e:
+            print(f"Error fetching stock lists: {e}")
+            print("Using default stock list...")
+            return default_stocks
+            
+        if not stocks:
+            return default_stocks
+            
+        return list(set(stocks))  # Remove duplicates
         
-        # Quality & Growth
-        "DMART.NS", "PIDILITIND.NS", "BAJAJFINSV.NS", "HDFCLIFE.NS", "TITAN.NS",
-        "ASIANPAINT.NS", "MARICO.NS", "NESTLEIND.NS", "COLPAL.NS", "PAGEIND.NS"
-    ]
-    return stocks
+    except Exception as e:
+        print(f"Error in get_all_indian_stocks: {e}")
+        return default_stocks
 
 def fetch_data(ticker):
     try:
@@ -126,17 +162,18 @@ def td_checklist(info, hist):
         "OCF < Net Profit (Forensic Red Flag)": ocf_net_ratio < 1,
         "Sharpe (10Y)": round(sharpe, 2),
         "ROE": info.get("returnOnEquity", 0),
-        "Debt/Equity": info.get("debtToEquity", 0)
+        "Debt/Equity": info.get("debtToEquity", 0),
+        "Exchange": "BSE" if ".BO" in info.get("symbol", "") else "NSE"
     }
 
     return summary
 
 def analyze_stocks(min_score_percent=90):
     results = []
-    stocks = get_nse_stocks()
+    stocks = get_all_indian_stocks()
     total_stocks = len(stocks)
     
-    print(f"\n🔍 Analyzing {total_stocks} NSE Stocks...\n")
+    print(f"\n🔍 Analyzing {total_stocks} Indian Stocks...\n")
     print(f"Looking for stocks with TD Score >= {min_score_percent}%\n")
     
     for i, ticker in enumerate(stocks, 1):
@@ -161,7 +198,7 @@ def analyze_stocks(min_score_percent=90):
     results.sort(key=lambda x: x['TD Score'], reverse=True)
     
     # Print results
-    print(f"\n📊 NSE Stocks with TD Score >= {min_score_percent}%")
+    print(f"\n📊 Indian Stocks with TD Score >= {min_score_percent}%")
     print("=" * 140)
     print(f"{'Rank':<5} {'Ticker':<12} {'Stock Name':<30} {'Sector':<20} {'Market Cap':<15} {'Price':<10} {'TD Score':<10} {'Score %':<10} {'ROE %':<8} {'D/E':<8} {'Sharpe':<10}")
     print("-" * 140)
