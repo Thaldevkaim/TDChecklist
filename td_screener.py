@@ -9,12 +9,35 @@ import requests
 import ssl
 import json
 from bs4 import BeautifulSoup
+import urllib3
+import random
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+
+# Disable SSL verification warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Create a custom SSL context that doesn't verify certificates
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+# Configure retry strategy
+retry_strategy = Retry(
+    total=3,  # number of retries
+    backoff_factor=1,  # wait 1, 2, 4 seconds between retries
+    status_forcelist=[429, 500, 502, 503, 504]  # HTTP status codes to retry on
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session = requests.Session()
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+session.verify = False
 
 def get_all_indian_stocks():
     """Return a list of all BSE and NSE stocks"""
     try:
         # BSE stocks (with .BO suffix)
-        bse_url = "https://www.bseindia.com/corporates/List_Scrips.aspx"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
@@ -41,17 +64,25 @@ def get_all_indian_stocks():
         ]
         
         try:
-            # Try to fetch BSE equity list
-            bse_response = requests.get("https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w", headers=headers)
+            # Try to fetch BSE equity list with SSL verification disabled
+            bse_response = session.get(
+                "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w",
+                headers=headers
+            )
             if bse_response.status_code == 200:
                 bse_data = bse_response.json()
                 for scrip in bse_data:
                     if scrip['Status'] == 'Active':
                         stocks.append(f"{scrip['SCRIP_CD']}.BO")
             
-            # Try to fetch NSE equity list
-            nse_url = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20500"
-            nse_response = requests.get(nse_url, headers=headers)
+            # Add delay between requests
+            time.sleep(random.uniform(1, 3))
+            
+            # Try to fetch NSE equity list with SSL verification disabled
+            nse_response = session.get(
+                "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20500",
+                headers=headers
+            )
             if nse_response.status_code == 200:
                 nse_data = nse_response.json()
                 for stock in nse_data['data']:
@@ -73,12 +104,32 @@ def get_all_indian_stocks():
 
 def fetch_data(ticker):
     try:
-        stock = yf.Ticker(ticker)
-        hist = stock.history(period="10y")
-        info = stock.info
-        if hist.empty or not info:
-            return None, None, f"No data available for {ticker}"
+        # Add random delay between requests
+        time.sleep(random.uniform(2, 4))
+        
+        # Configure yfinance to use the custom session
+        stock = yf.Ticker(ticker, session=session)
+        
+        try:
+            hist = stock.history(period="10y")
+            if hist.empty:
+                print(f"{ticker}: No price data found, symbol may be delisted (period=10y)")
+                return None, None, "No price data available"
+        except Exception as e:
+            print(f"Error fetching history for {ticker}: {e}")
+            return None, None, str(e)
+        
+        try:
+            info = stock.info
+            if not info:
+                print(f"{ticker}: No information available")
+                return None, None, "No information available"
+        except Exception as e:
+            print(f"Error fetching info for {ticker}: {e}")
+            return None, None, str(e)
+        
         return hist, info, None
+        
     except Exception as e:
         return None, None, str(e)
 
