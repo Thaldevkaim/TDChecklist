@@ -19,6 +19,15 @@ def root():
 
 @app.get("/score")
 def score(ticker: str):
+    """
+    Calculate TD Score for a given stock ticker.
+    Returns comprehensive analysis including:
+    - Total TD Score (out of 80)
+    - Score percentage
+    - 10-year Sharpe ratio
+    - Forensic red flags
+    - Detailed breakdown by category
+    """
     try:
         result = score_ticker(ticker)
         return result
