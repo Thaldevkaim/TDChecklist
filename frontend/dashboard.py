@@ -1,25 +1,29 @@
 import streamlit as st
 import requests
-import pandas as pd
 
-st.set_page_config(
-    page_title="TD Checklist",
-    page_icon="📊",
-    layout="wide"
-)
+st.set_page_config(page_title="TD Checklist Dashboard")
 
 st.title("TD Checklist Dashboard")
-st.markdown("### Stock Screening and Analysis Tool")
+st.subheader("Stock Screening and Analysis Tool")
+st.caption("Enter a stock ticker below (e.g., ASIANPAINT.NS or RELIANCE.BO)")
 
-def main():
-    # Add sidebar for filters
-    st.sidebar.title("Filters")
-    
-    # Main content area
-    st.write("Welcome to TD Checklist! Select options from the sidebar to begin analysis.")
-    
-    # Placeholder for future functionality
-    st.info("More features coming soon!")
+ticker = st.text_input("📈 Enter Stock Ticker")
 
-if __name__ == "__main__":
-    main() 
+if st.button("🔍 Analyze"):
+    url = f"https://td-api-9qrg.onrender.com/score?ticker={ticker}"
+    res = requests.get(url)
+    if res.status_code == 200:
+        data = res.json()
+        st.success(f"TD Score: {data['TD Score']} / 80 ({data['Score %']}%)")
+        st.metric("Sharpe Ratio (10Y)", data['Sharpe (10Y)'])
+
+        if data['Forensic Red Flag']:
+            st.warning("⚠️ Forensic Red Flag: OCF < Net Profit")
+        else:
+            st.success("✅ No Forensic Accounting Issues Detected")
+
+        st.subheader("🧠 Score Breakdown")
+        for category, pts in data['Breakdown'].items():
+            st.write(f"• **{category}**: {pts}/10")
+    else:
+        st.error("❌ Unable to fetch score. Please check the ticker or try again.") 
