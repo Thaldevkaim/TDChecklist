@@ -14,16 +14,19 @@ if st.button("🔍 Analyze"):
     res = requests.get(url)
     if res.status_code == 200:
         data = res.json()
-        st.success(f"TD Score: {data['TD Score']} / 80 ({data['Score %']}%)")
-        st.metric("Sharpe Ratio (10Y)", data['Sharpe (10Y)'])
-
-        if data['Forensic Red Flag']:
-            st.warning("⚠️ Forensic Red Flag: OCF < Net Profit")
+        if "error" in data:
+            st.error(f"❌ API Error: {data['error']}")
         else:
-            st.success("✅ No Forensic Accounting Issues Detected")
+            st.success(f"TD Score: {data['TD Score']} / 80 ({data['Score %']}%)")
+            st.metric("Sharpe Ratio (10Y)", data['Sharpe (10Y)'])
 
-        st.subheader("🧠 Score Breakdown")
-        for category, pts in data['Breakdown'].items():
-            st.write(f"• **{category}**: {pts}/10")
+            if data['Forensic Red Flag']:
+                st.warning("⚠️ Forensic Red Flag: OCF < Net Profit")
+            else:
+                st.success("✅ No Forensic Accounting Issues Detected")
+
+            st.subheader("🧠 Score Breakdown")
+            for category, pts in data['Breakdown'].items():
+                st.write(f"• **{category}**: {pts}/10")
     else:
         st.error("❌ Unable to fetch score. Please check the ticker or try again.") 
