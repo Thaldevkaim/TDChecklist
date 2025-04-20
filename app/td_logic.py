@@ -1,6 +1,7 @@
 import yfinance as yf
 import numpy as np
 from typing import Dict, Any
+import time
 
 def calculate_sharpe_ratio(ticker: str) -> float:
     """Calculate 10-year Sharpe ratio for a given stock"""
@@ -27,7 +28,13 @@ def check_forensic_flag(ticker: str) -> bool:
 def score_ticker(ticker):
     try:
         stock = yf.Ticker(ticker)
+        
+        # First attempt with 10y data
         hist = stock.history(period="10y")
+        if hist.empty:
+            # Attempt again if first attempt fails
+            time.sleep(2)
+            hist = stock.history(period="5y")
 
         if hist.empty:
             raise ValueError("No historical data found.")
