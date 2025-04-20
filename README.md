@@ -16,6 +16,11 @@ A comprehensive stock screening tool that evaluates companies based on principle
 ## Installation
 
 1. Clone this repository
+```bash
+git clone https://github.com/Thaldevkaim/TDChecklist.git
+cd TDChecklist
+```
+
 2. Install the required dependencies:
 ```bash
 pip install -r requirements.txt
@@ -23,18 +28,22 @@ pip install -r requirements.txt
 
 ## Usage
 
-1. Open `td_screener.py`
-2. Modify the `ticker` variable with the stock symbol you want to analyze
-3. Run the script:
+### Web Interface (Recommended)
+Run the Streamlit app:
+```bash
+streamlit run app.py
+```
+This will open a web interface where you can:
+- Analyze individual stocks
+- Screen multiple stocks with custom criteria
+- View detailed breakdowns and metrics
+- Get real-time analysis results
+
+### Command Line Interface
+You can also run the script directly:
 ```bash
 python td_screener.py
 ```
-
-The screener will output a detailed report including:
-- Overall TD Score (out of 80)
-- Score breakdown by category
-- Key metrics and red flags
-- 10-year Sharpe ratio
 
 ## Scoring System
 
@@ -47,6 +56,20 @@ The screener evaluates stocks across 8 categories, each worth 10 points:
 6. Risk Profile
 7. Conviction & Psychology
 8. Quant Edge
+
+## Features
+
+### Single Stock Analysis
+- Detailed breakdown of scores across all categories
+- Key financial metrics and ratios
+- Forensic accounting red flags
+- Risk metrics including Sharpe ratio
+
+### Multiple Stocks Screening
+- Analyze entire sets of stocks
+- Filter by minimum TD Score
+- Sort and compare across different metrics
+- Export results for further analysis
 
 ## Notes
 
