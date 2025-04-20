@@ -24,39 +24,84 @@ def check_forensic_flag(ticker: str) -> bool:
     except:
         return False
 
-def score_ticker(ticker: str) -> Dict[str, Any]:
-    """Calculate comprehensive TD score for a given stock"""
+def score_ticker(ticker):
     try:
         stock = yf.Ticker(ticker)
+        hist = stock.history(period="10y")
+
+        if hist.empty:
+            raise ValueError("No historical data found.")
+
         info = stock.info
 
-        # Calculate metrics
-        sharpe = calculate_sharpe_ratio(ticker)
-        forensic_flag = check_forensic_flag(ticker)
+        if not info or "shortName" not in info:
+            raise ValueError("Failed to load financial info.")
 
-        # Score breakdown (replace with actual calculations)
-        breakdown = {
-            "Growth": 8,
-            "Profitability": 7,
-            "Financial Health": 9,
-            "Valuation": 6,
-            "Management Quality": 8,
-            "Market Position": 7,
-            "Risk Factors": 8,
-            "Future Outlook": 7
-        }
+        score = 0
+        breakdown = {}
 
-        # Calculate total score
-        total_score = sum(breakdown.values())
-        score_percentage = round((total_score / 80) * 100, 1)
+        # 1. Business Quality & Moat
+        moat = 0
+        if info.get('longBusinessSummary'): moat += 6
+        if info.get('sector') not in ['Financial Services', 'Cyclicals']: moat += 4
+        breakdown['Business Quality & Moat'] = moat
+        score += moat
+
+        # 2. Management Quality
+        mgmt = 0
+        if info.get('heldPercentInsiders', 0) > 0.1: mgmt += 5
+        if info.get('returnOnEquity', 0) > 0.15: mgmt += 5
+        breakdown['Management Quality'] = mgmt
+        score += mgmt
+
+        # 3. Financial Strength
+        fin = 0
+        if info.get('debtToEquity', 100) < 1: fin += 5
+        if info.get('freeCashflow', 0) > 0: fin += 5
+        breakdown['Financial Strength'] = fin
+        score += fin
+
+        # 4. Forensic Accounting
+        forensic = 0
+        ocf_net = info.get('operatingCashflow', 1) / max(info.get('netIncome', 1), 1)
+        if ocf_net > 1: forensic += 6
+        if info.get('totalCash', 0) > info.get('totalDebt', 0): forensic += 4
+        breakdown['Forensic Accounting'] = forensic
+        score += forensic
+
+        # 5. Valuation
+        val = 0
+        if info.get('trailingPE', 50) < 30: val += 5
+        if info.get('priceToBook', 10) < 5: val += 5
+        breakdown['Valuation'] = val
+        score += val
+
+        # 6. Risk Profile
+        risk = 0
+        if info.get('beta', 1.2) < 1.2: risk += 5
+        if info.get('trailingEps', 0) > 0: risk += 5
+        breakdown['Risk Profile'] = risk
+        score += risk
+
+        # 7. Conviction
+        conviction = 5
+        breakdown['Conviction'] = conviction
+        score += conviction
+
+        # 8. Quant Edge
+        returns = hist['Close'].pct_change().dropna()
+        sharpe = (returns.mean() / returns.std()) * (252 ** 0.5)
+        quant = 4 if sharpe > 1 else 0
+        breakdown['Quant Edge'] = quant
+        score += quant
 
         return {
-            "TD Score": total_score,
-            "Score %": score_percentage,
-            "Sharpe (10Y)": sharpe,
-            "Forensic Red Flag": forensic_flag,
-            "Breakdown": breakdown
+            "TD Score": score,
+            "Score %": round(score / 80 * 100, 2),
+            "Sharpe (10Y)": round(sharpe, 2),
+            "Breakdown": breakdown,
+            "Forensic Red Flag": ocf_net < 1
         }
 
     except Exception as e:
-        raise Exception(f"Error analyzing {ticker}: {str(e)}") 
+        return {"error": f"Error analyzing {ticker}: {str(e)}"} 
