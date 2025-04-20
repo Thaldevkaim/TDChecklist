@@ -18,7 +18,7 @@ if st.button("🔍 Analyze"):
             st.error(f"❌ API Error: {data['error']}")
         else:
             st.success(f"TD Score: {data['TD Score']} / 80 ({data['Score %']}%)")
-            st.metric("Sharpe Ratio (10Y)", data['Sharpe (10Y)'])
+            st.metric("Sharpe Ratio (5Y)", data['Sharpe (5Y)'])
 
             if data['Forensic Red Flag']:
                 st.warning("⚠️ Forensic Red Flag: OCF < Net Profit")

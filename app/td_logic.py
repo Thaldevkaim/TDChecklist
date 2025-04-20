@@ -29,10 +29,10 @@ def score_ticker(ticker):
     try:
         stock = yf.Ticker(ticker)
         
-        # First attempt with 10y data
-        hist = stock.history(period="10y")
+        # Get 5y data
+        hist = stock.history(period="5y")
         if hist.empty:
-            # Attempt again if first attempt fails
+            # Retry once if first attempt fails
             time.sleep(2)
             hist = stock.history(period="5y")
 
@@ -105,7 +105,7 @@ def score_ticker(ticker):
         return {
             "TD Score": score,
             "Score %": round(score / 80 * 100, 2),
-            "Sharpe (10Y)": round(sharpe, 2),
+            "Sharpe (5Y)": round(sharpe, 2),
             "Breakdown": breakdown,
             "Forensic Red Flag": ocf_net < 1
         }
